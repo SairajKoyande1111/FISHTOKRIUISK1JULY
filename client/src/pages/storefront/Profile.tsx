@@ -1184,13 +1184,13 @@ export default function Profile() {
                   <button
                     key={sub}
                     onClick={() => setOrdersSubTab(sub)}
-                    style={isActive ? { backgroundColor: "#F05B4E" } : {}}
+                    style={isActive ? { backgroundColor: "#364F9F" } : {}}
                     className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-full text-sm font-medium transition-all ${isActive ? "text-white shadow-sm" : "text-slate-700 hover:text-black"}`}
                     data-testid={`tab-orders-${sub}`}
                   >
                     {sub === "current" ? "Active" : "Previous"}
                     {sub === "current" && currentOrders.length > 0 && (
-                      <span className="text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center bg-white" style={{ color: "#F05B4E" }}>{currentOrders.length}</span>
+                      <span className="text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center bg-white" style={{ color: "#364F9F" }}>{currentOrders.length}</span>
                     )}
                   </button>
                 );
