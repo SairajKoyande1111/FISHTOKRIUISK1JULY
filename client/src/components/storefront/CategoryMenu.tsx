@@ -103,10 +103,10 @@ export function CategoryMenuDropdown({ open, onClose }: Props) {
             }`}
             data-testid="menu-category-all"
           >
-            <div className="w-11 h-11 sm:w-12 sm:h-12 flex-shrink-0 flex items-center justify-center">
-              <img src={bagIcon} alt="All" className="w-full h-full object-contain mix-blend-multiply" />
+            <div className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0 flex items-center justify-center">
+              <img src={bagIcon} alt="All" className="w-10 h-10 sm:w-11 sm:h-11 object-contain mix-blend-multiply" />
             </div>
-            <span className={`text-base sm:text-base font-medium ${activeCategoryName === "All" ? "text-foreground font-semibold" : "text-slate-700"}`}>
+            <span className={`text-sm sm:text-base font-medium ${activeCategoryName === "All" ? "text-foreground font-semibold" : "text-slate-700"}`}>
               All
             </span>
           </button>
@@ -126,10 +126,10 @@ export function CategoryMenuDropdown({ open, onClose }: Props) {
                 }`}
                 data-testid={`menu-category-${cat.name.toLowerCase().replace(/\s+/g, "-")}`}
               >
-                <div className="w-16 h-16 sm:w-14 sm:h-14 flex-shrink-0">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
                   <img src={img} alt={cat.name} className="w-full h-full object-contain mix-blend-multiply" />
                 </div>
-                <span className={`text-base sm:text-base font-medium ${isActive ? "text-foreground font-semibold" : "text-slate-700"}`}>
+                <span className={`text-sm sm:text-base font-medium ${isActive ? "text-foreground font-semibold" : "text-slate-700"}`}>
                   {cat.name}
                 </span>
               </button>

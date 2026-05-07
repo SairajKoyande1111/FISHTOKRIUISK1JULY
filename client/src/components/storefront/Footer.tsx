@@ -23,24 +23,24 @@ export function Footer() {
           <div className="sm:col-span-2 lg:col-span-1">
             <FishTokriLogo className="h-9 w-auto mb-4 brightness-0 invert" />
             <p className="text-white text-sm leading-relaxed mb-5">
-              Mumbai's freshest fish, seafood & meat — cleaned, packed, and delivered straight to your doorstep.
+              Mumbai's freshest fish, seafood & meat, cleaned, packed, and delivered straight to your doorstep.
             </p>
             <div className="flex items-center gap-3">
-              <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram"
-                className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-200 hover:scale-110 hover:opacity-90">
-                <img src={instaIcon} alt="Instagram" className="w-full h-full object-cover" />
+              <a href="https://www.instagram.com/fishtokri/" target="_blank" rel="noreferrer" aria-label="Instagram"
+                className="w-10 h-10 flex-shrink-0 rounded-xl overflow-hidden transition-all duration-200 hover:scale-110 hover:opacity-90">
+                <img src={instaIcon} alt="Instagram" className="w-10 h-10 object-cover" />
               </a>
-              <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook"
-                className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-200 hover:scale-110 hover:opacity-90">
-                <img src={fbIcon} alt="Facebook" className="w-full h-full object-cover" />
+              <a href="https://www.facebook.com/fishtokri/" target="_blank" rel="noreferrer" aria-label="Facebook"
+                className="w-10 h-10 flex-shrink-0 rounded-xl overflow-hidden transition-all duration-200 hover:scale-110 hover:opacity-90">
+                <img src={fbIcon} alt="Facebook" className="w-10 h-10 object-cover" />
               </a>
               <a href="https://youtube.com" target="_blank" rel="noreferrer" aria-label="YouTube"
-                className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-200 hover:scale-110 hover:opacity-90">
-                <img src={ytIcon} alt="YouTube" className="w-full h-full object-cover" />
+                className="w-10 h-10 flex-shrink-0 rounded-xl overflow-hidden transition-all duration-200 hover:scale-110 hover:opacity-90">
+                <img src={ytIcon} alt="YouTube" className="w-10 h-10 object-cover" />
               </a>
-              <a href="https://wa.me" target="_blank" rel="noreferrer" aria-label="WhatsApp"
-                className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-200 hover:scale-110 hover:opacity-90">
-                <img src={waIcon} alt="WhatsApp" className="w-full h-full object-cover" />
+              <a href="https://wa.me/9220200100" target="_blank" rel="noreferrer" aria-label="WhatsApp"
+                className="w-10 h-10 flex-shrink-0 rounded-xl overflow-hidden transition-all duration-200 hover:scale-110 hover:opacity-90">
+                <img src={waIcon} alt="WhatsApp" className="w-10 h-10 object-cover" />
               </a>
             </div>
           </div>
@@ -105,14 +105,14 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-2.5">
                 <img src={phoneIcon} alt="" aria-hidden className="w-4 h-4 shrink-0" style={whiteFilter} />
-                <a href="tel:+919999999999" className="text-white text-sm hover:opacity-75 transition-opacity">
-                  +91 99999 99999
+                <a href="tel:+919220200100" className="text-white text-sm hover:opacity-75 transition-opacity">
+                  +91 92202 00100
                 </a>
               </li>
               <li className="flex items-center gap-2.5">
                 <img src={mailIcon} alt="" aria-hidden className="w-4 h-4 shrink-0" style={whiteFilter} />
-                <a href="mailto:hello@fishtokri.com" className="text-white text-sm hover:opacity-75 transition-opacity">
-                  hello@fishtokri.com
+                <a href="mailto:info@fishtokri.com" className="text-white text-sm hover:opacity-75 transition-opacity">
+                  info@fishtokri.com
                 </a>
               </li>
               <li className="flex items-start gap-2.5">
@@ -127,11 +127,11 @@ export function Footer() {
         </div>
 
         {/* Divider + bottom bar */}
-        <div className="border-t border-white/20 pt-5 flex flex-col items-center gap-2 text-center">
+        <div className="border-t border-white/20 pt-5 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-white text-xs">
             © {new Date().getFullYear()} FishTokri. All rights reserved.
           </p>
-          <p className="text-white/70 text-xs">
+          <p className="text-white/80 text-xs text-center">
             Designed and Developed by{" "}
             <a
               href="https://www.airavatatechnologies.com/"
