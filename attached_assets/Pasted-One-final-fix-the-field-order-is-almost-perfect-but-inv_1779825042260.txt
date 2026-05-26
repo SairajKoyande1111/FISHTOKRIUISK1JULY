@@ -1,0 +1,56 @@
+One final fix — the field order is almost perfect but inventoryDeducted is in
+the wrong position in the frontend order.
+
+--- ADMIN ORDER (correct field order at the end) ---
+  ...
+  "timeslotStart": "12:00 AM",
+  "timeslotEnd": "01:00 AM",
+  "createdAt": { ... },        <-- createdAt
+  "updatedAt": { ... },        <-- updatedAt
+  "orderId": "#FTS202605274",  <-- orderId
+  "inventoryDeducted": true    <-- inventoryDeducted is LAST
+}
+
+--- FRONTEND ORDER (wrong field order at the end) ---
+  ...
+  "timeslotStart": "01:00 AM",
+  "timeslotEnd": "02:00 AM",
+  "inventoryDeducted": true,   <-- BUG: inventoryDeducted is appearing too early
+  "createdAt": { ... },
+  "updatedAt": { ... },
+  "orderId": "#FTS202605272"
+}
+
+=== THE FIX ===
+
+inventoryDeducted is being set on the order object before the initial save,
+which is why Mongoose stores it before createdAt/updatedAt.
+
+The correct sequence is:
+  1. Build and save the order object (WITHOUT inventoryDeducted)
+     --> Mongoose sets createdAt and updatedAt here
+  2. Generate and assign orderId via findByIdAndUpdate
+     --> orderId gets appended after createdAt/updatedAt
+  3. Set inventoryDeducted: true via another findByIdAndUpdate (or combine
+     with the orderId update in a single $set call)
+     --> inventoryDeducted gets appended last
+
+Combine steps 2 and 3 into one update call like this:
+
+  const final = await Order.findByIdAndUpdate(
+    saved._id,
+    { $set: { orderId, inventoryDeducted: true } },
+    { new: true }
+  );
+
+Since both orderId and inventoryDeducted are set together in the same
+findByIdAndUpdate AFTER the initial save, MongoDB will append them after
+createdAt and updatedAt — matching the admin order field sequence exactly.
+
+The final correct order of the last 4 fields should be:
+  "createdAt"         <-- set by Mongoose on save
+  "updatedAt"         <-- set by Mongoose on save
+  "orderId"           <-- set via findByIdAndUpdate after save
+  "inventoryDeducted" <-- set via same findByIdAndUpdate after save
+
+Please find the order creation controller, show the current code, and apply this fix.

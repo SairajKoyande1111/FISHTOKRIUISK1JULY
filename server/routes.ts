@@ -583,7 +583,6 @@ export async function registerRoutes(
         timeslotLabel: input.timeslotLabel ?? null,
         timeslotStart: input.timeslotStart ?? null,
         timeslotEnd: input.timeslotEnd ?? null,
-        inventoryDeducted: !!input.hubDbName,
       };
 
       const order = await storage.createOrderRequest(orderInput);
@@ -592,7 +591,11 @@ export async function registerRoutes(
       // shared sequence across admin + online orders, and $set appends orderId as the
       // last field (matching admin POS document structure).
       const generatedOrderId = await generateOrderId();
-      await getOrderModel().findByIdAndUpdate(order.id, { $set: { orderId: generatedOrderId } });
+      // orderId and inventoryDeducted are set together in one update AFTER save,
+      // so both appear after createdAt/updatedAt — matching admin POS field order exactly.
+      await getOrderModel().findByIdAndUpdate(order.id, {
+        $set: { orderId: generatedOrderId, inventoryDeducted: !!input.hubDbName },
+      });
 
       const orderItemsTotal = (order.items as any[]).reduce((sum: number, item: any) => {
         return sum + ((item.price ?? 0) * (item.quantity ?? 1));
