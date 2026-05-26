@@ -73,6 +73,11 @@ const orderSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
+const orderIdCounterSchema = new mongoose.Schema({
+  date: { type: String, required: true, unique: true },
+  seq: { type: Number, default: 0 },
+});
+
 export async function connectOrdersDb() {
   if (!ordersConnection) {
     ordersConnection = mongoose.createConnection(MONGODB_URI, { dbName: "orders" });
@@ -88,4 +93,31 @@ export function getOrderModel() {
     throw new Error("Orders DB not connected. Call connectOrdersDb() first.");
   }
   return ordersConnection.models["Order"] || ordersConnection.model("Order", orderSchema);
+}
+
+export function getOrderIdCounterModel() {
+  if (!ordersConnection) {
+    throw new Error("Orders DB not connected. Call connectOrdersDb() first.");
+  }
+  return (
+    ordersConnection.models["OrderIdCounter"] ||
+    ordersConnection.model("OrderIdCounter", orderIdCounterSchema, "order_id_counters")
+  );
+}
+
+/**
+ * Atomically increments the daily counter and returns the next orderId.
+ * Uses the same `order_id_counters` collection as the admin POS panel.
+ * Format: #FTS{YYYYMMDD}{N} — e.g. #FTS202605271
+ */
+export async function generateOrderId(): Promise<string> {
+  const now = new Date();
+  const date = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+  const Counter = getOrderIdCounterModel();
+  const counter = await Counter.findOneAndUpdate(
+    { date },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  ).lean() as any;
+  return `#FTS${date}${counter.seq}`;
 }

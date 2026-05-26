@@ -5,7 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import passport from "passport";
 import { setupAuth } from "./auth";
-import { connectOrdersDb } from "./ordersDb";
+import { connectOrdersDb, generateOrderId } from "./ordersDb";
 import { setImage, getImage, deleteImage } from "./imageStore";
 import { insertCarouselSlideSchema, insertCategorySchema, insertSectionSchema, insertComboSchema, insertCustomerAddressSchema, updateCustomerSchema, insertInventoryBatchSchema } from "@shared/schema";
 import { SuperHubModel, SubHubModel } from "./adminDb";
@@ -389,23 +389,10 @@ export async function registerRoutes(
     try {
       const input = api.orders.create.input.parse(req.body);
 
-      // Generate daily-sequential FTS order ID: #FTSYYYYMMDD01, #FTSYYYYMMDD02, …
-      let generatedOrderId: string | null = null;
-      try {
-        const OrderModel = getOrderModel();
-        const now = new Date();
-        const yyyy = now.getFullYear();
-        const mm = String(now.getMonth() + 1).padStart(2, "0");
-        const dd = String(now.getDate()).padStart(2, "0");
-        const dateStr = `${yyyy}${mm}${dd}`;
-        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
-        const todayCount = await OrderModel.countDocuments({
-          createdAt: { $gte: startOfDay, $lt: endOfDay },
-          orderId: { $regex: /^#FTS/ },
-        });
-        generatedOrderId = `#FTS${dateStr}${String(todayCount + 1).padStart(2, "0")}`;
-      } catch { /* non-fatal — will fall back to MongoDB id */ }
+      // Generate daily-sequential FTS order ID using the same atomic counter
+      // collection as the admin POS panel (order_id_counters).
+      // Format: #FTS{YYYYMMDD}{N} — e.g. #FTS202605271
+      const generatedOrderId = await generateOrderId();
 
       // FIFO inventory deduction if hubDbName is provided
       if (input.hubDbName) {

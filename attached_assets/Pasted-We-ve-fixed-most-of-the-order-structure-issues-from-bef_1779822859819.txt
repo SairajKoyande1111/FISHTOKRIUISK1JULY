@@ -1,0 +1,61 @@
+We've fixed most of the order structure issues from before. After re-testing, only 2 bugs remain in the frontend order creation flow. Here are the two orders for reference:
+
+--- ADMIN ORDER (reference - correct) ---
+{
+  "orderId": "#FTS202605274",
+  "deliveryAddressDetail": {
+    "_id": "6a15eb768a188157b473da4d",   <-- real ObjectId from customer's saved address
+    "name": "Sairaj",
+    ...
+  }
+}
+
+--- FRONTEND ORDER (still broken) ---
+{
+  "orderId": null,                        <-- BUG 1: still null
+  "deliveryAddressDetail": {
+    "_id": null,                          <-- BUG 2: present but null, should be the real address _id
+    "name": "Sairaj",
+    ...
+  }
+}
+
+--- FIXES NEEDED ---
+
+BUG 1 — orderId is null:
+The frontend order creation route is not generating an orderId at all.
+Find where the order is saved (POST /orders or createOrder controller) and add
+orderId generation immediately after the order is inserted into the DB.
+
+The format used by admin orders is: #FTS{YYYYMMDD}{N}
+where YYYYMMDD is today's date and N is an incrementing counter for that day.
+
+Check if there is already a generateOrderId() or similar utility used by the
+admin panel flow — if yes, call that same function here. If not, create one
+that queries the orders collection to count today's orders and increments from there.
+
+Assign the generated orderId back to the order document after insert
+(findByIdAndUpdate or set it before save, depending on your flow).
+
+BUG 2 — deliveryAddressDetail._id is null:
+The frontend is including the _id field but not populating it with a real value.
+This means the address lookup is finding the right address object but not
+carrying over its _id.
+
+When the user selects a saved address, that address object from the customer's
+addresses array has its own _id (a MongoDB ObjectId). Make sure that _id is
+included when spreading or copying the address into the order payload.
+
+Common cause: the frontend is doing something like:
+  const { _id, ...rest } = selectedAddress   <-- accidentally stripping _id
+  order.deliveryAddressDetail = rest
+
+Or the backend is rebuilding the address object from individual fields without
+including _id. Find where deliveryAddressDetail is constructed and ensure
+_id is explicitly passed through.
+
+After both fixes, a frontend order should look exactly like the admin order:
+  "orderId": "#FTS202605275"  (or next in sequence)
+  "deliveryAddressDetail._id": "6a15eb768a188157b473da4d"  (real ObjectId, not null)
+
+Please find the relevant files, show the current broken code, and fix both issues.

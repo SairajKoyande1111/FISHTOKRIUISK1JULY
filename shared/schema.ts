@@ -252,6 +252,7 @@ export const insertSectionSchema = z.object({
 });
 
 const deliveryAddressDetailSchema = z.object({
+  _id: z.string().nullable().optional(),
   name: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
   building: z.string().nullable().optional(),
