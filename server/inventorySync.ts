@@ -21,10 +21,11 @@ export async function syncAllHubInventory() {
   try {
     const subHubs = await SubHubModel.find({ status: "Active" }).lean();
     let totalBatchesUpdated = 0;
+    let totalCombosDeactivated = 0;
 
     for (const hub of subHubs as any[]) {
       if (!hub.dbName) continue;
-      const { Product } = await getHubModels(hub.dbName);
+      const { Product, Combo } = await getHubModels(hub.dbName);
 
       const products = await Product.find({
         "inventoryBatches.0": { $exists: true },
@@ -53,9 +54,35 @@ export async function syncAllHubInventory() {
           totalBatchesUpdated++;
         }
       }
+
+      // Find products where every batch is expired → all-expired product IDs
+      const allBatchedProducts = await Product.find({
+        "inventoryBatches.0": { $exists: true },
+      }).lean();
+
+      const allExpiredProductIds = (allBatchedProducts as any[])
+        .filter((p: any) =>
+          (p.inventoryBatches ?? []).length > 0 &&
+          (p.inventoryBatches ?? []).every((b: any) => b.remainingTime === "expired")
+        )
+        .map((p: any) => p._id.toString());
+
+      // Deactivate any active combo that contains at least one all-expired product
+      if (allExpiredProductIds.length > 0) {
+        const result = await Combo.updateMany(
+          {
+            isActive: true,
+            "includes.productId": { $in: allExpiredProductIds },
+          },
+          { $set: { isActive: false } }
+        );
+        totalCombosDeactivated += result.modifiedCount ?? 0;
+      }
     }
 
-    console.log(`[inventory sync] updated ${totalBatchesUpdated} batch(es) across ${subHubs.length} hub(s)`);
+    console.log(
+      `[inventory sync] updated ${totalBatchesUpdated} batch(es) across ${subHubs.length} hub(s); deactivated ${totalCombosDeactivated} combo(s) due to expired products`
+    );
   } catch (err) {
     console.error("[inventory sync] error:", err);
   }
