@@ -1197,9 +1197,6 @@ export function CartDrawer() {
                                       <span className={`text-sm font-semibold block truncate ${slot.isInstant ? "text-amber-700" : "text-foreground"}`}>
                                         {slot.label}
                                       </span>
-                                      {timeDisplay && (
-                                        <span className="text-xs text-muted-foreground block">{timeDisplay}</span>
-                                      )}
                                     </div>
                                     {slot.isInstant && (slot.extraCharge ?? 0) > 0 ? (
                                       <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full shrink-0">+₹{slot.extraCharge}</span>
