@@ -78,6 +78,7 @@ export function OtpModal({ open, onClose }: OtpModalProps) {
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
   const [focusedOtpIndex, setFocusedOtpIndex] = useState<number | null>(null);
+  const [showWhatsAppNotif, setShowWhatsAppNotif] = useState(false);
   const { toast } = useToast();
   const { refetch } = useCustomer();
   const queryClient = useQueryClient();
@@ -128,6 +129,8 @@ export function OtpModal({ open, onClose }: OtpModalProps) {
         throw new Error(data.message || "Failed to send OTP");
       }
       setOtpSent(true);
+      setShowWhatsAppNotif(true);
+      setTimeout(() => setShowWhatsAppNotif(false), 3500);
     } catch (err: any) {
       toast({ title: err.message, variant: "destructive" });
     } finally {
@@ -202,6 +205,27 @@ export function OtpModal({ open, onClose }: OtpModalProps) {
         <VisuallyHidden>
           <SheetTitle>Login to FishTokri</SheetTitle>
         </VisuallyHidden>
+
+        {/* WhatsApp OTP notification pill */}
+        <AnimatePresence>
+          {showWhatsAppNotif && (
+            <motion.div
+              initial={{ opacity: 0, y: -16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -16 }}
+              transition={{ duration: 0.3 }}
+              className="fixed top-4 left-1/2 z-[100] -translate-x-1/2 pointer-events-none"
+            >
+              <div className="flex items-center gap-2 px-5 py-2 rounded-full shadow-lg" style={{ backgroundColor: "#16a34a" }}>
+                <svg className="w-4 h-4 text-white shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                  <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.528 5.845L.057 23.743a.5.5 0 0 0 .614.676l6.076-1.583A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.853 0-3.593-.504-5.088-1.383l-.364-.215-3.762.98.999-3.657-.236-.376A9.96 9.96 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+                </svg>
+                <span className="text-white text-sm font-semibold whitespace-nowrap">OTP sent on your registered WhatsApp number</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Header — matches Order Summary style */}
         <SheetHeader className="px-5 py-4 border-b border-border/30 bg-white sticky top-0 z-10">
@@ -305,11 +329,9 @@ export function OtpModal({ open, onClose }: OtpModalProps) {
                   <Lottie animationData={otpAnimation} loop autoplay />
                 </div>
                 <h3 className="text-lg font-bold text-center text-slate-800">Verify it's you!</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-sm text-slate-500">
-                    Code sent to{" "}
-                    <span className="font-semibold text-slate-700">+91 {phone}</span>
-                  </p>
+                <p className="text-sm text-slate-500 mt-1 text-center">Code sent on WhatsApp</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-sm font-semibold text-slate-700">+91 {phone}</p>
                   <button
                     className="text-xs font-bold underline"
                     style={{ color: BRAND_RED }}
