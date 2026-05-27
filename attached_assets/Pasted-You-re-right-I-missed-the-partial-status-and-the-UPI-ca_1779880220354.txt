@@ -1,0 +1,43 @@
+You're right, I missed the `partial` status and the UPI case. Here's the updated prompt ready to copy:
+
+---
+
+**Bug Fix: Payment details not being saved when placing an order from the frontend**
+
+When a user places an order through the frontend, the order is created successfully but the payment information is not being recorded. Specifically, the `payments` array is empty, `paymentStatus` is set to `"unpaid"`, `paidAmount` is `0`, and `dueAmount` equals the full order total — even when the user has selected a payment method.
+
+**Broken behavior (from frontend):**
+```json
+"paymentStatus": "unpaid",
+"payments": [],
+"paidAmount": 0,
+"dueAmount": 400
+```
+
+**What to fix:**
+When the order is submitted from the frontend, the API request body must include the `payments` array populated with the correct payment mode(s), amount(s), and a `paidAt` timestamp.
+
+**Payment status logic to follow:**
+
+| Scenario | `paymentStatus` | `paidAmount` | `dueAmount` |
+|---|---|---|---|
+| Cash only (no wallet) | `"unpaid"` | ₹0 | Full total |
+| UPI only | `"paid"` | Full total | ₹0 |
+| Wallet covers full total | `"paid"` | Full total | ₹0 |
+| Wallet (partial) + Cash | `"partial"` | Wallet amount only | Remaining cash due |
+| Wallet (partial) + UPI | `"paid"` | Full total | ₹0 |
+
+**Key rules:**
+- Cash is always considered due until physically received — it is stored in the `payments` array for record keeping but **never counts toward `paidAmount`**.
+- UPI and wallet are considered instantly settled and count toward `paidAmount`.
+- `dueAmount` = order total − `paidAmount`.
+- `paymentStatus` is `"paid"` if `dueAmount` is 0, `"partial"` if wallet covered some but cash covers the rest, and `"unpaid"` if nothing has been settled (cash only).
+
+**Examples:**
+- Order ₹400, cash only → `paymentStatus: "unpaid"`, `paidAmount: 0`, `dueAmount: 400`, `payments: [{ mode: "cash", amount: 400 }]`
+- Order ₹400, UPI only → `paymentStatus: "paid"`, `paidAmount: 400`, `dueAmount: 0`, `payments: [{ mode: "upi", amount: 400 }]`
+- Order ₹400, wallet ₹400 → `paymentStatus: "paid"`, `paidAmount: 400`, `dueAmount: 0`, `payments: [{ mode: "wallet", amount: 400 }]`
+- Order ₹400, wallet ₹100 + cash ₹300 → `paymentStatus: "partial"`, `paidAmount: 100`, `dueAmount: 300`, `payments: [{ mode: "wallet", amount: 100 }, { mode: "cash", amount: 300 }]`
+- Order ₹400, wallet ₹100 + UPI ₹300 → `paymentStatus: "paid"`, `paidAmount: 400`, `dueAmount: 0`, `payments: [{ mode: "wallet", amount: 100 }, { mode: "upi", amount: 300 }]`
+
+Please check the order placement function and the API call in the frontend code — the `payments` array is likely being sent as empty or not included at all in the request payload. Ensure the selected payment method, wallet deduction amount (if any), UPI amount, and cash amount are all correctly constructed and passed to the order creation API before the request is submitted.

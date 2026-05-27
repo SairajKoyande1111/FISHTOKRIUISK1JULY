@@ -568,9 +568,9 @@ export function CartDrawer() {
     const deliveryDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
     // Build payments array per admin-panel spec:
-    // - wallet entry first (if wallet used)
-    // - then remaining cash/UPI entry
-    // - pure COD with no wallet → payments stays [] (unpaid until delivery)
+    // - wallet entry first (if wallet used), then remaining cash/UPI entry
+    // - pure COD: add a cash entry for record keeping (cash is never settled until physically received)
+    // - Cash never counts toward paidAmount; only wallet and UPI are instantly settled
     const cashMode = paymentMethod === "online" ? "upi" : "cash";
     const paidAt = new Date().toISOString();
     const orderPayments: Array<{ mode: string; amount: number; reference: string; paidAt: string }> = [];
@@ -581,10 +581,15 @@ export function CartDrawer() {
       }
     } else if (paymentMethod === "online") {
       orderPayments.push({ mode: "upi", amount: rawTotal, reference: "", paidAt });
+    } else {
+      // Pure COD — record the cash entry but it does not count as paid until received
+      orderPayments.push({ mode: "cash", amount: rawTotal, reference: "", paidAt });
     }
-    // pure COD (no wallet): orderPayments stays []
 
-    const paidAmount = orderPayments.reduce((sum, p) => sum + p.amount, 0);
+    // Cash is never instantly settled — only wallet and UPI count toward paidAmount
+    const paidAmount = orderPayments
+      .filter(p => p.mode !== "cash")
+      .reduce((sum, p) => sum + p.amount, 0);
     const dueAmount = rawTotal - paidAmount;
     const paymentStatus = paidAmount === 0 ? "unpaid" : paidAmount >= rawTotal ? "paid" : "partial";
 
