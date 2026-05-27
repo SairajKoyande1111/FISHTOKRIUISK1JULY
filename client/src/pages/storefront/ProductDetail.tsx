@@ -468,15 +468,15 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {/* ── Explore New Recipes ── */}
-        <section className="mb-14">
-          <div className="flex items-center gap-2 mb-5">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 shrink-0">
-              <Lottie animationData={recipesIconAnim} loop autoplay />
+        {/* ── Explore New Recipes — only shown when the admin has added recipes to this product ── */}
+        {product.recipes && product.recipes.length > 0 && (
+          <section className="mb-14">
+            <div className="flex items-center gap-2 mb-5">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 shrink-0">
+                <Lottie animationData={recipesIconAnim} loop autoplay />
+              </div>
+              <h2 className="text-lg sm:text-xl font-medium text-foreground">Explore New Recipes</h2>
             </div>
-            <h2 className="text-lg sm:text-xl font-medium text-foreground">Explore New Recipes</h2>
-          </div>
-          {product.recipes && product.recipes.length > 0 ? (
             <div className="relative">
               <div ref={recipeScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
                 {product.recipes.map((r, idx) => (
@@ -536,23 +536,8 @@ export default function ProductDetail() {
               </div>
               <SwipeHint scrollRef={recipeScrollRef} />
             </div>
-          ) : (
-            <div className="relative">
-              <div ref={recipeScrollRef} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
-                {dummy.recipes.map((r, idx) => (
-                  <RecipeCard
-                    key={r.name}
-                    recipe={r}
-                    category={product.category}
-                    index={idx}
-                    onViewRecipe={(cat, i) => setLocation(`/recipe/${encodeURIComponent(cat)}/${i}`)}
-                  />
-                ))}
-              </div>
-              <SwipeHint scrollRef={recipeScrollRef} />
-            </div>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* ── Similar Products ── */}
         {recommended.length > 0 && (
