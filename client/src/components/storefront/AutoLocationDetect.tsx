@@ -1,39 +1,41 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  MapPin, Navigation, Loader2, CheckCircle2, AlertCircle, Phone, MessageCircle, X
+  Navigation, Loader2, CheckCircle2, AlertCircle, Phone, MessageCircle, X, MapPin
 } from "lucide-react";
 import { useHub, SuperHub, SubHub } from "@/context/HubContext";
-import { waitForMapsReady } from "@/hooks/use-google-maps";
-
-declare global { interface Window { google: any } }
 
 const LOCATION_CHECKED_KEY = "fishtokri_location_checked";
 const BRAND_BLUE = "#364F9F";
 const BRAND_ORANGE = "#F97316";
 
-// ── Update to your actual business contact numbers ─────────────────────
 const BUSINESS_PHONE = "9220200100";
-const BUSINESS_WHATSAPP = "919220200100"; // 91 + 10-digit number, no +
-// ──────────────────────────────────────────────────────────────────────
+const BUSINESS_WHATSAPP = "919220200100";
 
 type Phase = "idle" | "permission" | "detecting" | "serviceable" | "unserviceable" | "done";
 
-async function reverseGeocodeCoords(lat: number, lon: number): Promise<string | null> {
-  const ready = await waitForMapsReady(8000);
-  if (!ready || !window.google?.maps) return null;
-  return new Promise((resolve) => {
-    const geocoder = new window.google.maps.Geocoder();
-    geocoder.geocode(
-      { location: { lat, lng: lon } },
-      (results: any, status: string) => {
-        if (status !== "OK" || !results?.[0]) { resolve(null); return; }
-        const comp = results[0].address_components.find(
-          (c: any) => c.types.includes("postal_code")
-        );
-        resolve(comp?.long_name ?? null);
-      }
+// Uses Google Maps REST API directly — no JS library loading required, instant on first load
+async function reverseGeocodeRest(lat: number, lon: number): Promise<string | null> {
+  const key = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+  if (!key) return null;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${key}`,
+      { signal: controller.signal }
     );
-  });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const result = data.results?.[0];
+    if (!result) return null;
+    const comp = result.address_components?.find(
+      (c: any) => c.types.includes("postal_code")
+    );
+    return comp?.long_name ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function getIpPincode(): Promise<string | null> {
@@ -50,13 +52,26 @@ async function getIpPincode(): Promise<string | null> {
   }
 }
 
+// Gets GPS coordinates with a timeout
+function getGpsCoords(): Promise<GeolocationCoordinates | null> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) { resolve(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve(pos.coords),
+      () => resolve(null),
+      { timeout: 10000, maximumAge: 300000 }
+    );
+  });
+}
+
 export function AutoLocationDetect() {
-  const { setHub } = useHub();
+  const { setHub, openPicker } = useHub();
 
   const setHubRef = useRef(setHub);
   setHubRef.current = setHub;
   const subsRef = useRef<SubHub[]>([]);
   const supersRef = useRef<SuperHub[]>([]);
+  const finishedRef = useRef(false);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [detectedArea, setDetectedArea] = useState("");
@@ -74,50 +89,54 @@ export function AutoLocationDetect() {
     return true;
   }, []);
 
+  // Called once when detection has a final answer
+  const finish = useCallback((matched: boolean) => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    localStorage.setItem(LOCATION_CHECKED_KEY, "1");
+    if (matched) {
+      setPhase("serviceable");
+      setTimeout(() => setPhase("done"), 3500);
+    } else {
+      setPhase("unserviceable");
+    }
+  }, []);
+
   const runDetect = useCallback(async () => {
-    return new Promise<void>((resolve) => {
-      const finish = (matched: boolean) => {
-        localStorage.setItem(LOCATION_CHECKED_KEY, "1");
-        if (matched) {
-          setPhase("serviceable");
-          setTimeout(() => setPhase("done"), 3500);
-        } else {
-          setPhase("unserviceable");
-        }
-        resolve();
-      };
+    finishedRef.current = false;
 
-      if (!navigator.geolocation) {
-        getIpPincode().then((ipPin) => finish(!!(ipPin && matchPincode(ipPin))));
-        return;
-      }
+    // ── Launch GPS + IP in PARALLEL ────────────────────────────────────
+    // IP lookup starts immediately — no permissions needed, usually ~1s
+    const ipPromise = getIpPincode();
 
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const pincode = await reverseGeocodeCoords(
-            pos.coords.latitude,
-            pos.coords.longitude
-          );
-          if (pincode && matchPincode(pincode)) {
-            finish(true);
-          } else {
-            const ipPin = await getIpPincode();
-            finish(!!(ipPin && matchPincode(ipPin)));
-          }
-        },
-        async () => {
-          // GPS denied or errored — IP fallback
-          const ipPin = await getIpPincode();
-          finish(!!(ipPin && matchPincode(ipPin)));
-        },
-        { timeout: 12000, maximumAge: 300000 }
-      );
+    // GPS starts immediately — browser may show permission prompt
+    const gpsPromise = getGpsCoords();
+
+    // ── IP result handler ────────────────────────────────────────────
+    ipPromise.then((ipPin) => {
+      if (finishedRef.current) return;
+      if (ipPin && matchPincode(ipPin)) finish(true);
     });
-  }, [matchPincode]);
+
+    // ── GPS result handler ───────────────────────────────────────────
+    gpsPromise.then(async (coords) => {
+      if (finishedRef.current) return;
+      if (coords) {
+        const pincode = await reverseGeocodeRest(coords.latitude, coords.longitude);
+        if (finishedRef.current) return;
+        if (pincode && matchPincode(pincode)) {
+          finish(true);
+          return;
+        }
+      }
+      // GPS failed or no match — wait for IP result and finalize
+      const ipPin = await ipPromise;
+      if (finishedRef.current) return;
+      finish(!!(ipPin && matchPincode(ipPin)));
+    });
+  }, [matchPincode, finish]);
 
   useEffect(() => {
-    // Use a dedicated key — NOT the hub storage key, because HubContext
-    // auto-sets that with a default hub on every first visit
     if (localStorage.getItem(LOCATION_CHECKED_KEY)) return;
 
     let cancelled = false;
@@ -131,7 +150,6 @@ export function AutoLocationDetect() {
         if (!superRes.ok || !subRes.ok || cancelled) return;
         supersRef.current = await superRes.json();
         subsRef.current = await subRes.json();
-
         if (!subsRef.current.length || cancelled) return;
 
         if (navigator.permissions) {
@@ -139,17 +157,12 @@ export function AutoLocationDetect() {
           if (cancelled) return;
           if (perm.state === "granted") {
             setPhase("detecting");
-            await runDetect();
+            runDetect();
           } else {
-            // Show the modal after a brief delay so the page settles first
-            setTimeout(() => {
-              if (!cancelled) setPhase("permission");
-            }, 1400);
+            setTimeout(() => { if (!cancelled) setPhase("permission"); }, 1200);
           }
         } else {
-          setTimeout(() => {
-            if (!cancelled) setPhase("permission");
-          }, 1400);
+          setTimeout(() => { if (!cancelled) setPhase("permission"); }, 1200);
         }
       } catch { /* network error — stay hidden */ }
     };
@@ -158,9 +171,9 @@ export function AutoLocationDetect() {
     return () => { cancelled = true; };
   }, [runDetect]);
 
-  const handleAllow = useCallback(async () => {
+  const handleAllow = useCallback(() => {
     setPhase("detecting");
-    await runDetect();
+    runDetect();
   }, [runDetect]);
 
   const handleDismiss = useCallback(() => {
@@ -168,7 +181,6 @@ export function AutoLocationDetect() {
     setPhase("done");
   }, []);
 
-  const { openPicker } = useHub();
   const handleManualSelect = useCallback(() => {
     localStorage.setItem(LOCATION_CHECKED_KEY, "1");
     setPhase("done");
@@ -188,7 +200,6 @@ export function AutoLocationDetect() {
       {/* Modal card */}
       <div className="relative bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300">
 
-        {/* Dismiss button */}
         {(phase === "permission" || phase === "unserviceable") && (
           <button
             onClick={handleDismiss}
@@ -199,7 +210,7 @@ export function AutoLocationDetect() {
           </button>
         )}
 
-        {/* ── DETECTING STATE ─────────────────────────────────────── */}
+        {/* ── DETECTING ────────────────────────────────────────────── */}
         {phase === "detecting" && (
           <div className="flex flex-col items-center px-8 py-10 text-center">
             <div
@@ -213,7 +224,7 @@ export function AutoLocationDetect() {
           </div>
         )}
 
-        {/* ── PERMISSION REQUEST STATE ─────────────────────────────── */}
+        {/* ── PERMISSION REQUEST ────────────────────────────────────── */}
         {phase === "permission" && (
           <div className="flex flex-col items-center px-8 py-8 text-center">
             <div
@@ -246,29 +257,30 @@ export function AutoLocationDetect() {
           </div>
         )}
 
-        {/* ── SERVICEABLE STATE ────────────────────────────────────── */}
+        {/* ── SERVICEABLE ──────────────────────────────────────────── */}
         {phase === "serviceable" && (
           <div className="flex flex-col items-center px-8 py-10 text-center">
             <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
               <CheckCircle2 className="w-8 h-8 text-green-600" />
             </div>
-            <h2 className="text-xl font-bold text-slate-800 mb-1">
-              We deliver to you!
-            </h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-1">We deliver to you!</h2>
             <p className="text-sm text-slate-500 mt-1">
               Fresh seafood &amp; meat delivered to{" "}
               <span className="font-semibold" style={{ color: BRAND_BLUE }}>
                 {detectedArea}
               </span>
             </p>
-            <div className="mt-5 flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-white" style={{ backgroundColor: BRAND_ORANGE }}>
+            <div
+              className="mt-5 flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-white"
+              style={{ backgroundColor: BRAND_ORANGE }}
+            >
               <MapPin className="w-4 h-4" />
               {detectedArea} — Location set!
             </div>
           </div>
         )}
 
-        {/* ── UNSERVICEABLE STATE ──────────────────────────────────── */}
+        {/* ── UNSERVICEABLE ─────────────────────────────────────────── */}
         {phase === "unserviceable" && (
           <div className="flex flex-col items-center px-8 py-8 text-center">
             <div
@@ -284,7 +296,9 @@ export function AutoLocationDetect() {
               Sorry, we don't deliver to your location at the moment.
             </p>
             <p className="text-sm text-slate-500 leading-relaxed mb-6">
-              For <span className="font-semibold text-slate-700">bulk or long-distance orders</span>, reach out to us directly — we'll do our best to help!
+              For{" "}
+              <span className="font-semibold text-slate-700">bulk or long-distance orders</span>,
+              reach out to us directly — we'll do our best to help!
             </p>
 
             <div className="flex gap-3 w-full mb-3">
