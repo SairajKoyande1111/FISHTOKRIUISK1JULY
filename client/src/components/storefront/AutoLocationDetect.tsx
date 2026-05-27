@@ -191,24 +191,11 @@ export function AutoLocationDetect() {
 
   return (
     <div className="fixed inset-0 z-[350] flex items-end sm:items-center justify-center px-0 sm:px-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={phase === "permission" || phase === "unserviceable" ? handleDismiss : undefined}
-      />
+      {/* Backdrop — non-interactive, blocks all taps on the page beneath */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
       {/* Modal card */}
       <div className="relative bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300">
-
-        {(phase === "permission" || phase === "unserviceable") && (
-          <button
-            onClick={handleDismiss}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors z-10"
-            data-testid="button-location-modal-dismiss"
-          >
-            <X className="w-4 h-4 text-slate-500" />
-          </button>
-        )}
 
         {/* ── DETECTING ────────────────────────────────────────────── */}
         {phase === "detecting" && (
