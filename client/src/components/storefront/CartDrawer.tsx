@@ -393,7 +393,13 @@ export function CartDrawer() {
   const pincodeDeliveryCharge = pincodeConfig?.charge ?? 0;
   const pincodeTimeDelay = pincodeConfig?.timeDelay ?? 0;
 
-  // Show "We can still reach you!" popup when selected address pincode is not serviceable
+  // Helper: check if a pincode is unserviceable in the current hub
+  const checkPincodeServiceability = useCallback((pincode: string): boolean => {
+    if (pincode.length < 6 || !selectedSubHub?.pincodes?.length) return true;
+    return !!selectedSubHub.pincodes.find(p => p.pincode === pincode);
+  }, [selectedSubHub]);
+
+  // Show popup when switching between existing saved addresses with unserviceable pincodes
   useEffect(() => {
     const selected = savedAddresses.find(a => a.id === activeAddressId);
     if (!selected?.pincode || selected.pincode.length < 6) return;
@@ -403,7 +409,7 @@ export function CartDrawer() {
       setUnserviceablePincode(selected.pincode);
       setShowUnserviceablePopup(true);
     }
-  }, [activeAddressId, savedAddresses, selectedSubHub]);
+  }, [activeAddressId, selectedSubHub]);
 
   // Add N minutes to a formatted time string and return 12h format
   const addMinutesToTime = useCallback((timeStr: string, minutes: number): string => {
@@ -529,6 +535,11 @@ export function CartDrawer() {
   const saveAddress = async () => {
     if (!addForm.name || !addForm.phone || !addForm.building || !addForm.area) {
       toast({ title: "Please fill all required fields", variant: "destructive" });
+      return;
+    }
+    if (addForm.pincode.length === 6 && !checkPincodeServiceability(addForm.pincode)) {
+      setUnserviceablePincode(addForm.pincode);
+      setShowUnserviceablePopup(true);
       return;
     }
     const label =
@@ -1218,7 +1229,14 @@ export function CartDrawer() {
                                 inputMode="numeric"
                                 maxLength={6}
                                 value={addForm.pincode}
-                                onChange={e => setAddForm(f => ({ ...f, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                                onChange={e => {
+                                  const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                                  setAddForm(f => ({ ...f, pincode: val }));
+                                  if (val.length === 6 && !checkPincodeServiceability(val)) {
+                                    setUnserviceablePincode(val);
+                                    setShowUnserviceablePopup(true);
+                                  }
+                                }}
                                 placeholder="400601"
                                 className="w-full bg-transparent border-0 border-b border-border/60 focus:border-[#364F9F] focus:outline-none px-0 py-1.5 text-sm transition-colors"
                                 data-testid="input-address-pincode"
