@@ -243,6 +243,8 @@ export function CartDrawer() {
   const { data: timeslots = [], isLoading: timeslotsLoading } = useQuery<Timeslot[]>({
     queryKey: ["/api/timeslots"],
     enabled: isCartOpen,
+    refetchInterval: 15_000,
+    staleTime: 0,
   });
 
   // Convert a time string to a Date (handles both "21:30" 24h and "9:30 PM" 12h formats)
