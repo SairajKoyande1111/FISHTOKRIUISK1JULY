@@ -302,11 +302,14 @@ export function CartDrawer() {
   const isSlotAvailable = useCallback((slot: Timeslot): boolean => {
     if (slot.isInstant) return true;
     const now = new Date();
-    // A slot is unavailable once its START time has passed.
+    // A slot is unavailable 30 minutes before its START time.
     const startStr = extractSlotStartTime(slot);
     if (startStr) {
       const startTime = parseTimeStr(startStr);
-      if (startTime && now >= startTime) return false;
+      if (startTime) {
+        const cutoff = new Date(startTime.getTime() - 30 * 60 * 1000);
+        if (now >= cutoff) return false;
+      }
     }
     // Check today's order limit (always enforced when orderLimit > 0)
     if (slot.orderLimit > 0 && slot.todaysOrderCount >= slot.orderLimit) return false;
