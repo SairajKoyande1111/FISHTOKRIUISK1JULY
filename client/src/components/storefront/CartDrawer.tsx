@@ -132,6 +132,10 @@ export function CartDrawer() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const paymentSucceededRef = useRef(false);
+  // Mobile UPI return refs — store pending Razorpay order so we can poll when user comes back from GPay
+  const pendingRzpOrderIdRef = useRef<string | null>(null);
+  const pendingSelectedAddressRef = useRef<any>(null);
+  const returningFromUpiRef = useRef(false);
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "online">("cod");
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showUnserviceablePopup, setShowUnserviceablePopup] = useState(false);
@@ -754,8 +758,10 @@ export function CartDrawer() {
           email: customer?.email || "",
         },
         handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
-          // Mark as succeeded immediately so ondismiss (which fires after handler) doesn't show a false "cancelled" toast
+          // Mark as succeeded and clear pending UPI refs so the visibilitychange listener doesn't double-process
           paymentSucceededRef.current = true;
+          pendingRzpOrderIdRef.current = null;
+          pendingSelectedAddressRef.current = null;
           try {
             const verifyRes = await fetch("/api/razorpay/verify-payment", {
               method: "POST",
@@ -798,16 +804,22 @@ export function CartDrawer() {
         },
         modal: {
           ondismiss: () => {
-            // ondismiss fires when modal closes — guard against false toast after successful payment
-            if (paymentSucceededRef.current) return;
+            // Suppress if payment already succeeded OR if we're mid-check after returning from a UPI app
+            if (paymentSucceededRef.current || returningFromUpiRef.current) return;
+            // Also suppress if there's still a pending UPI order — visibilitychange will handle it
+            if (pendingRzpOrderIdRef.current) return;
             setIsProcessingPayment(false);
-            // Reopen the cart so user can retry or change method
             setIsCartOpen(true);
             toast({ title: "Payment cancelled", variant: "destructive" });
           },
         },
         theme: { color: "#364F9F" },
       };
+
+      // Store order details before opening so the visibilitychange listener can
+      // recover payment completion when the user returns from GPay / PhonePe
+      pendingRzpOrderIdRef.current = order_id;
+      pendingSelectedAddressRef.current = selected;
 
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
@@ -827,6 +839,67 @@ export function CartDrawer() {
       document.body.appendChild(script);
     }
   }, [isCartOpen]);
+
+  // Mobile UPI return: when the user comes back from GPay/PhonePe/etc., the browser
+  // fires visibilitychange. We poll our backend to check if payment completed, then
+  // finish the order flow so the user sees the success animation.
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (
+        document.visibilityState !== "visible" ||
+        !pendingRzpOrderIdRef.current ||
+        paymentSucceededRef.current
+      ) return;
+
+      const orderId = pendingRzpOrderIdRef.current;
+      const selected = pendingSelectedAddressRef.current;
+      if (!selected) return;
+
+      // Flag we're checking so ondismiss doesn't show a false "Payment cancelled" toast
+      returningFromUpiRef.current = true;
+
+      // Give Razorpay a moment to settle before querying
+      await new Promise((r) => setTimeout(r, 1500));
+
+      try {
+        const statusRes = await fetch(`/api/razorpay/order-status/${orderId}`);
+        const statusData = await statusRes.json();
+
+        if (!statusData.paid) {
+          returningFromUpiRef.current = false;
+          return; // Payment not complete yet — user may still be in UPI app
+        }
+
+        // Payment confirmed server-side — mark as succeeded and place the order
+        paymentSucceededRef.current = true;
+        pendingRzpOrderIdRef.current = null;
+
+        createOrder(buildOrderPayload(selected, statusData.paymentId), {
+          onSuccess: () => {
+            setIsCartOpen(true);
+            setIsSuccess(true);
+            clearCart();
+            setUseWallet(false);
+            setIsProcessingPayment(false);
+            paymentSucceededRef.current = false;
+            returningFromUpiRef.current = false;
+          },
+          onError: (err: any) => {
+            paymentSucceededRef.current = false;
+            returningFromUpiRef.current = false;
+            setIsProcessingPayment(false);
+            setIsCartOpen(true);
+            toast({ title: err?.message || "Could not place order. Please try again.", variant: "destructive" });
+          },
+        });
+      } catch {
+        returningFromUpiRef.current = false;
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [createOrder, buildOrderPayload, clearCart, setIsCartOpen, setUseWallet, toast]);
 
   // Safety net: always clear the cart when the success screen is shown,
   // regardless of whether the mutation onSuccess callback fires.

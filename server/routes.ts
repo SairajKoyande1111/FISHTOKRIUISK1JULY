@@ -505,6 +505,29 @@ export async function registerRoutes(
     }
   });
 
+  // Mobile UPI return: check if a Razorpay order has been paid (verifies server-side)
+  app.get("/api/razorpay/order-status/:orderId", async (req, res) => {
+    if (!razorpay) return res.status(503).json({ message: "Payment service not configured" });
+    try {
+      const { orderId } = req.params;
+      const payments = await razorpay.orders.fetchPayments(orderId) as any;
+      const captured = (payments.items ?? []).find(
+        (p: any) => p.status === "captured" || p.status === "authorized"
+      );
+      if (captured) {
+        const secret = process.env.RAZORPAY_KEY_SECRET!;
+        const signature = createHmac("sha256", secret)
+          .update(`${orderId}|${captured.id}`)
+          .digest("hex");
+        return res.json({ paid: true, paymentId: captured.id, signature });
+      }
+      return res.json({ paid: false });
+    } catch (err) {
+      console.error("[Razorpay] order-status error:", err);
+      return res.status(500).json({ paid: false, message: "Failed to fetch order status" });
+    }
+  });
+
   app.post("/api/razorpay/verify-payment", async (req, res) => {
     if (!razorpay) return res.status(503).json({ message: "Payment service not configured" });
     try {
