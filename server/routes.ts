@@ -475,12 +475,19 @@ export async function registerRoutes(
   });
 
   // ── Razorpay Payment Routes ──────────────────────────────────────────────
-  const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID!,
-    key_secret: process.env.RAZORPAY_KEY_SECRET!,
-  });
+  const razorpay = (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)
+    ? new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+      })
+    : null;
+
+  if (!razorpay) {
+    console.warn("[Razorpay] RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET not set — payment routes disabled");
+  }
 
   app.post("/api/razorpay/create-order", async (req, res) => {
+    if (!razorpay) return res.status(503).json({ message: "Payment service not configured" });
     try {
       const { amount } = req.body;
       if (!amount || typeof amount !== "number" || amount <= 0) {
@@ -499,6 +506,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/razorpay/verify-payment", async (req, res) => {
+    if (!razorpay) return res.status(503).json({ message: "Payment service not configured" });
     try {
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
       if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
