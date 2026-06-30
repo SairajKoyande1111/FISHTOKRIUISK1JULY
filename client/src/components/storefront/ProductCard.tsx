@@ -111,7 +111,7 @@ export function ProductCard({ product }: { product: Product }) {
         <p className="text-sm text-muted-foreground mb-2.5 font-normal">
           {product.grossWeight && (
             <>
-              <span className="font-medium text-foreground/80">{product.grossWeight}</span>
+              <span className="font-medium text-foreground/80">{product.grossWeight}g Gross</span>
               <span>&nbsp;&nbsp;|&nbsp;&nbsp;</span>
             </>
           )}
