@@ -300,7 +300,7 @@ export default function Home() {
 
         {/* Category Row */}
         <div className="mb-6">
-          <DragScrollDiv className="flex overflow-x-auto gap-6 scrollbar-hide snap-x snap-mandatory">
+          <DragScrollDiv className="flex overflow-x-auto gap-6 scrollbar-hide snap-x snap-normal">
             {categories.map((cat) => (
               <button
                 key={cat.name}
@@ -353,7 +353,7 @@ export default function Home() {
                   <p className="text-sm text-muted-foreground py-4">No combos available yet.</p>
                 ) : (
                   <>
-                    <DragScrollDiv className="flex overflow-x-auto gap-4 sm:gap-5 scrollbar-hide snap-x pb-2">
+                    <DragScrollDiv className="flex overflow-x-auto gap-4 sm:gap-5 scrollbar-hide snap-x snap-normal pb-2">
                       {availableCombos.map(combo => {
                         const comboImages = combo.includes
                           .map(inc => {
@@ -494,7 +494,7 @@ export default function Home() {
                   {section.title}
                 </h2>
               </div>
-              <DragScrollDiv className="flex overflow-x-auto gap-4 sm:gap-6 scrollbar-hide snap-x">
+              <DragScrollDiv className="flex overflow-x-auto gap-4 sm:gap-6 scrollbar-hide snap-x snap-normal">
                 {isLoading
                   ? [1,2,3,4,5,6].map(i => <Skeleton key={i} className="min-w-[240px] sm:min-w-[280px] h-[340px] sm:h-[380px] rounded-3xl" />)
                   : sectionProducts.length > 0
