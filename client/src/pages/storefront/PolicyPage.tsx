@@ -178,7 +178,7 @@ const POLICIES: Record<string, PolicyConfig> = {
       { heading: "Orders & Payments", body: "" },
       {
         heading: "Is GST included in the price?",
-        body: "Yes, all prices displayed on the Platform are inclusive of applicable GST.",
+        body: "FishTokri is registered under GST. Taxes are levied in accordance with prevailing GST regulations. The applicable GST rate depends on the nature of the product or service and will be reflected in the order summary and tax invoice.",
       },
       {
         heading: "Why isn't my coupon code applying?",
@@ -232,7 +232,7 @@ const POLICIES: Record<string, PolicyConfig> = {
       },
       {
         heading: "How long do refunds take?",
-        body: "Once a refund is approved, it is typically credited to your original payment method within 5-7 business days, depending on your bank.",
+        body: "Once a refund is approved, it is typically credited to your in-app wallet, which can be used for your next order on our application, within 5–7 business days, depending on your issue.",
       },
       {
         heading: "What is the difference between fresh and frozen products?",
