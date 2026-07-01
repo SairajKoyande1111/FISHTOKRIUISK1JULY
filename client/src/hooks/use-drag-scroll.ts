@@ -7,22 +7,19 @@ export function useDragScroll<T extends HTMLElement>() {
   const scrollLeft = useRef(0);
   const hasDragged = useRef(false);
 
-  // Smooth wheel-to-horizontal-scroll using momentum
+  // Momentum for wheel scroll
   const velocity = useRef(0);
   const rafId = useRef<number | null>(null);
 
+  // ── Wheel: convert vertical scroll to smooth horizontal ──────────────────
   const onWheel = useCallback((e: WheelEvent) => {
     const el = ref.current;
     if (!el) return;
-    // Only intercept if the element has horizontal overflow to scroll
-    const hasHorizontalScroll = el.scrollWidth > el.clientWidth;
-    if (!hasHorizontalScroll) return;
+    if (el.scrollWidth <= el.clientWidth) return;
     e.preventDefault();
-    // Use deltaY (vertical scroll) to drive horizontal scroll — feels natural on all devices
     const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
     velocity.current += delta;
     if (rafId.current !== null) cancelAnimationFrame(rafId.current);
-    // Momentum decay loop for a smooth, natural feel on desktop mouse wheel
     const step = () => {
       if (!ref.current) return;
       ref.current.scrollLeft += velocity.current * 0.12;
@@ -36,6 +33,30 @@ export function useDragScroll<T extends HTMLElement>() {
     };
     rafId.current = requestAnimationFrame(step);
   }, []);
+
+  // ── Drag: mousemove/mouseup on document so fast drags don't break ────────
+  const onMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging.current) return;
+    const el = ref.current;
+    if (!el) return;
+    e.preventDefault();
+    const x = e.pageX - el.offsetLeft;
+    const walk = (x - startX.current) * 1.5;
+    if (Math.abs(walk) > 4) hasDragged.current = true;
+    el.scrollLeft = scrollLeft.current - walk;
+  }, []);
+
+  const onMouseUp = useCallback(() => {
+    if (!isDragging.current) return;
+    const el = ref.current;
+    isDragging.current = false;
+    if (el) {
+      el.style.cursor = "grab";
+      el.style.userSelect = "";
+    }
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  }, [onMouseMove]);
 
   const onMouseDown = useCallback((e: MouseEvent) => {
     const el = ref.current;
@@ -52,34 +73,10 @@ export function useDragScroll<T extends HTMLElement>() {
     scrollLeft.current = el.scrollLeft;
     el.style.cursor = "grabbing";
     el.style.userSelect = "none";
-  }, []);
-
-  const onMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging.current) return;
-    const el = ref.current;
-    if (!el) return;
-    e.preventDefault();
-    const x = e.pageX - el.offsetLeft;
-    const walk = (x - startX.current) * 1.2;
-    if (Math.abs(walk) > 4) hasDragged.current = true;
-    el.scrollLeft = scrollLeft.current - walk;
-  }, []);
-
-  const onMouseUp = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    isDragging.current = false;
-    el.style.cursor = "grab";
-    el.style.userSelect = "";
-  }, []);
-
-  const onMouseLeave = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    isDragging.current = false;
-    el.style.cursor = "grab";
-    el.style.userSelect = "";
-  }, []);
+    // Attach to document so drag works even when mouse leaves the element
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }, [onMouseMove, onMouseUp]);
 
   const onClickCapture = useCallback((e: MouseEvent) => {
     if (hasDragged.current) {
@@ -94,20 +91,16 @@ export function useDragScroll<T extends HTMLElement>() {
     el.style.cursor = "grab";
     el.addEventListener("wheel", onWheel, { passive: false });
     el.addEventListener("mousedown", onMouseDown);
-    el.addEventListener("mousemove", onMouseMove);
-    el.addEventListener("mouseup", onMouseUp);
-    el.addEventListener("mouseleave", onMouseLeave);
     el.addEventListener("click", onClickCapture, true);
     return () => {
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("mousedown", onMouseDown);
-      el.removeEventListener("mousemove", onMouseMove);
-      el.removeEventListener("mouseup", onMouseUp);
-      el.removeEventListener("mouseleave", onMouseLeave);
       el.removeEventListener("click", onClickCapture, true);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
       if (rafId.current !== null) cancelAnimationFrame(rafId.current);
     };
-  }, [onWheel, onMouseDown, onMouseMove, onMouseUp, onMouseLeave, onClickCapture]);
+  }, [onWheel, onMouseDown, onMouseMove, onMouseUp, onClickCapture]);
 
   return ref;
 }

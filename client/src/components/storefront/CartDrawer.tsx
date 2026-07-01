@@ -577,9 +577,10 @@ export function CartDrawer() {
   };
 
   const walletBalance = (customer as any)?.walletBalance ?? 0;
-  const rawTotal = totalPrice - discountAmount + pincodeDeliveryCharge + (selectedTimeslot?.isInstant ? (selectedTimeslot.extraCharge ?? 0) : 0);
-  const walletDeduction = useWallet ? Math.min(walletBalance, rawTotal) : 0;
-  const finalTotal = rawTotal - walletDeduction;
+  const rawTotal = totalPrice + pincodeDeliveryCharge + (selectedTimeslot?.isInstant ? (selectedTimeslot.extraCharge ?? 0) : 0);
+  const afterCouponTotal = rawTotal - discountAmount;
+  const walletDeduction = useWallet ? Math.min(walletBalance, afterCouponTotal) : 0;
+  const finalTotal = afterCouponTotal - walletDeduction;
 
   const loadRazorpayScript = (): Promise<boolean> => {
     return new Promise((resolve) => {
