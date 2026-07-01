@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
 import { useHub, SuperHub, SubHub } from "@/context/HubContext";
@@ -22,6 +22,30 @@ export function LocationPicker() {
   const [status, setStatus] = useState<CheckStatus>("idle");
   const [areaName, setAreaName] = useState("");
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Lock body scroll when picker is open so the mobile keyboard doesn't shift the page
+  useEffect(() => {
+    if (isPickerOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = "100%";
+    } else {
+      const scrollY = document.body.style.top;
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      if (scrollY) window.scrollTo(0, -parseInt(scrollY || "0", 10));
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+    };
+  }, [isPickerOpen]);
 
   const pincode = digits.join("");
 

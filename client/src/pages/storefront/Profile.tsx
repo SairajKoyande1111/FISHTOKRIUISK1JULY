@@ -49,6 +49,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCustomer } from "@/context/CustomerContext";
 import { useHub } from "@/context/HubContext";
 import { OtpModal } from "@/components/storefront/OtpModal";
+import { CartDrawer } from "@/components/storefront/CartDrawer";
 import { apiRequest } from "@/lib/queryClient";
 import type { Customer, CustomerAddress, OrderRequest, Product } from "@shared/schema";
 import fishImg from "@assets/Gemini_Generated_Image_w6wqkkw6wqkkw6wq_(1)_1772713077919.png";
@@ -1580,6 +1581,8 @@ export default function Profile() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CartDrawer />
 
       {/* Unserviceable pincode popup — same logic as cart drawer */}
       <Dialog open={showUnserviceablePopup} onOpenChange={setShowUnserviceablePopup}>
