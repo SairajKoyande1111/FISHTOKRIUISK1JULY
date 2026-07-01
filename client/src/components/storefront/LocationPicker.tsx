@@ -63,7 +63,7 @@ export function LocationPicker() {
           setAreaName(matchedSub.name);
           setStatus("eligible");
           setHub(matchedSuper, matchedSub);
-          setTimeout(() => { closePicker(); reset(); }, 2200);
+          setTimeout(() => { closePicker(); reset(); window.scrollTo({ top: 0, behavior: "instant" }); }, 2200);
           return;
         }
       }
