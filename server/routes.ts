@@ -886,7 +886,7 @@ export async function registerRoutes(
           .map((item: any) => `• ${item.name} x${item.quantity ?? 1} — ₹${(item.price ?? 0) * (item.quantity ?? 1)}`)
           .join("\n");
         const paymentLabel = (order as any).paymentMethod === "upi" ? "UPI (Paid)" : "Cash on Delivery";
-        sendWhatsApp("fishtokri_order_confirmed", order.phone, [
+        sendWhatsApp("order_confirmed_fishtokri", order.phone, [
           order.customerName || "Customer",
           generatedOrderId,
           order.address || order.deliveryArea || "Your address",
@@ -1621,7 +1621,7 @@ export async function registerRoutes(
 
       // Send welcome WhatsApp message (fire-and-forget)
       const displayName = (customer as any)?.name || "there";
-      sendWhatsApp("fishtokri_welcome", normalised, [displayName]).catch(() => {});
+      sendWhatsApp("welcome_to_fishtokri", normalised, [displayName]).catch(() => {});
 
       res.json(customer);
     } catch (err: any) {
