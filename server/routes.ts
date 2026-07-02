@@ -23,37 +23,34 @@ declare module "express-session" {
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 
-// ── AiSensy WhatsApp helper ───────────────────────────────────────────────
-const AISENSY_API_URL = "https://backend.aisensy.com/campaign/t1/api/v2";
-const AISENSY_USERNAME = process.env.AISENSY_USERNAME || "ATHA FOODS PRIVATE LIMITED";
+// ── Admark WhatsApp helper ────────────────────────────────────────────────
+const ADMARK_API_URL = "https://verifiedwhatsapp.admarksolution.com/api/send/bytemplate";
 
-async function sendWhatsApp(campaignName: string, phone: string, templateParams: string[]) {
-  const apiKey = process.env.AISENSY_API_KEY;
-  if (!apiKey) { console.warn("[WhatsApp] AISENSY_API_KEY not set — skipping"); return; }
+async function sendWhatsApp(templateName: string, phone: string, csvVariables: string[]) {
+  const apiKey = process.env.ADMARK_API_KEY;
+  const phoneNumberId = process.env.ADMARK_PHONE_NUMBER_ID;
+  if (!apiKey || !phoneNumberId) {
+    console.warn("[WhatsApp] ADMARK_API_KEY or ADMARK_PHONE_NUMBER_ID not set — skipping");
+    return;
+  }
   const destination = `91${phone}`;
   try {
-    const res = await fetch(AISENSY_API_URL, {
-      method: "POST",
+    const params = new URLSearchParams({
+      "api-key": apiKey,
+      templateName,
+      phoneNumber: destination,
+      phoneNumberId,
+      csvVariables: csvVariables.join(","),
+    });
+    const res = await fetch(`${ADMARK_API_URL}?${params.toString()}`, {
+      method: "GET",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        apiKey,
-        campaignName,
-        destination,
-        userName: AISENSY_USERNAME,
-        templateParams,
-        source: "fishtokri-app",
-        media: {},
-        buttons: [],
-        carouselCards: [],
-        location: {},
-        paramsFallbackValue: { FirstName: templateParams[0] ?? "" },
-      }),
     });
     const text = await res.text();
-    if (!res.ok) console.error(`[WhatsApp] ${campaignName} failed ${res.status}:`, text);
-    else console.log(`[WhatsApp] ${campaignName} → ${destination}`);
+    if (!res.ok) console.error(`[WhatsApp] ${templateName} failed ${res.status}:`, text);
+    else console.log(`[WhatsApp] ${templateName} → ${destination}`);
   } catch (err) {
-    console.error(`[WhatsApp] ${campaignName} error:`, err);
+    console.error(`[WhatsApp] ${templateName} error:`, err);
   }
 }
 
@@ -1558,57 +1555,40 @@ export async function registerRoutes(
       { upsert: true, new: true }
     );
 
-    // Send via AiSensy WhatsApp
-    const apiKey = process.env.AISENSY_API_KEY;
-    const userName = process.env.AISENSY_USERNAME || "ATHA FOODS PRIVATE LIMITED";
-    if (!apiKey) {
-      console.error("[OTP] AISENSY_API_KEY not set — OTP not sent via WhatsApp");
+    // Send OTP via Admark WhatsApp
+    const admarkApiKey = process.env.ADMARK_API_KEY;
+    const admarkPhoneNumberId = process.env.ADMARK_PHONE_NUMBER_ID;
+    if (!admarkApiKey || !admarkPhoneNumberId) {
+      console.error("[OTP] ADMARK_API_KEY or ADMARK_PHONE_NUMBER_ID not set — OTP not sent via WhatsApp");
       return res.json({ message: "OTP sent" });
     }
 
     try {
       const destination = `91${normalised}`;
-      const payload = {
-        apiKey,
-        campaignName: "Fishtokriotp",
-        destination,
-        userName,
-        templateParams: [otp],
-        source: "fishtokri-app",
-        media: {},
-        buttons: [
-          {
-            type: "button",
-            sub_type: "url",
-            index: 0,
-            parameters: [{ type: "text", text: otp }],
-          },
-        ],
-        carouselCards: [],
-        location: {},
-        attributes: { name: otp },
-        paramsFallbackValue: { FirstName: otp },
-      };
+      const params = new URLSearchParams({
+        "api-key": admarkApiKey,
+        templateName: "fishtokri_website_otp",
+        phoneNumber: destination,
+        phoneNumberId: admarkPhoneNumberId,
+        csvVariables: otp,
+      });
 
-      console.log(`[OTP] Sending payload to AiSensy:`, JSON.stringify(payload, null, 2));
-
-      const response = await fetch("https://backend.aisensy.com/campaign/t1/api/v2", {
-        method: "POST",
+      const response = await fetch(`${ADMARK_API_URL}?${params.toString()}`, {
+        method: "GET",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
       });
 
       const responseText = await response.text();
-      console.log(`[OTP] AiSensy response ${response.status}:`, responseText);
+      console.log(`[OTP] Admark response ${response.status}:`, responseText);
 
       if (!response.ok) {
-        console.error(`[OTP] AiSensy error ${response.status}: ${responseText}`);
+        console.error(`[OTP] Admark error ${response.status}: ${responseText}`);
         return res.status(502).json({ message: "Failed to send OTP. Please try again." });
       }
 
-      console.log(`[OTP] Sent to ${destination} via AiSensy`);
+      console.log(`[OTP] Sent to ${destination} via Admark`);
     } catch (err) {
-      console.error("[OTP] AiSensy request failed:", err);
+      console.error("[OTP] Admark request failed:", err);
       return res.status(502).json({ message: "Failed to send OTP. Please try again." });
     }
 
